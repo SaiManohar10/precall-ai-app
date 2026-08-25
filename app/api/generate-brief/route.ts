@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(req: Request) {
   try {
@@ -10,7 +10,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing GEMINI_API_KEY in environment" }, { status: 500 });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: { responseMimeType: 'application/json' }
+    });
 
     const prompt = `
 You are the PreCall AI Autonomous Sales Intelligence & Meeting Brief Agent.
@@ -26,7 +30,7 @@ Attendee Role: ${attendeeRole}
 Meeting Goal: ${meetingTitle || "Discovery & Strategy Call"}
 Recent Context / Delta Notes: ${previousNotes || "First introductory meeting"}
 
-Generate a high-impact, professional pre-meeting sales brief in valid JSON format:
+Generate a high-impact, professional pre-meeting sales brief in valid JSON format matching this schema exactly:
 {
   "executiveSummary": "2-3 crisp sentences summarizing what ${targetCompany} does, their market position, and likely current initiatives.",
   "recentTriggers": ["Key business trigger 1", "Industry movement or hiring signal 2", "Recent growth milestone 3"],
@@ -48,15 +52,8 @@ Generate a high-impact, professional pre-meeting sales brief in valid JSON forma
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      }
-    });
-
-    const text = response.text || "{}";
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
     const data = JSON.parse(text);
 
     return NextResponse.json({ success: true, data });
