@@ -3,11 +3,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(req: Request) {
   try {
-    const { targetCompany, attendeeRole, meetingTitle, previousNotes, knowledgeBase } = await req.json();
+    const { targetCompany, attendeeRole, attendeeName, meetingTitle, previousNotes, knowledgeBase, framework } = await req.json();
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "Missing GEMINI_API_KEY in environment" }, { status: 500 });
+      return NextResponse.json({ error: "Missing GEMINI_API_KEY" }, { status: 500 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -17,48 +17,99 @@ export async function POST(req: Request) {
     });
 
     const prompt = `
-You are the PreCall AI Autonomous Sales Intelligence & Meeting Brief Agent.
+You are the PreCall AI Autonomous Sales Intelligence Engine. Your mandate is to eliminate manual sales prep and calculate precise, grounded pre-call execution intelligence.
 
-[SELLER CONTEXT - OUR COMPANY & PRODUCT]
-Company Name: ${knowledgeBase?.companyName || "Our SaaS Product"}
-Value Proposition: ${knowledgeBase?.valueProp || "Leading enterprise solution for productivity"}
-Key Battlecards & Differentiators: ${knowledgeBase?.battlecards || "Fast onboarding, robust automation, superior ROI"}
+[SELLER KNOWLEDGE BASE]
+Company: ${knowledgeBase?.companyName || "PreCall AI"}
+Product Pitch: ${knowledgeBase?.productDescription || "B2B Sales Intelligence Platform"}
+Value Props: 
+- ${knowledgeBase?.valueProp1 || "Cut prep time by 90%"}
+- ${knowledgeBase?.valueProp2 || "Uncover unstated buyer pain"}
+- ${knowledgeBase?.valueProp3 || "Align MEDDPICC discovery"}
+Battlecards & Defensibility: ${knowledgeBase?.battlecards || "Native CRM delta engine, fast onboarding"}
+Sales Methodology: ${framework || "MEDDPICC"}
 
-[PROSPECT CONTEXT]
+[TARGET BUYER CONTEXT]
 Target Company: ${targetCompany}
-Attendee Role: ${attendeeRole}
-Meeting Goal: ${meetingTitle || "Discovery & Strategy Call"}
-Recent Context / Delta Notes: ${previousNotes || "First introductory meeting"}
+Key Stakeholder: ${attendeeName || "Key Decision Maker"} (${attendeeRole})
+Upcoming Call: ${meetingTitle || "Executive Strategy Review"}
+Recent Delta / CRM History: ${previousNotes || "Introductory evaluation stage"}
 
-Generate a high-impact, professional pre-meeting sales brief in valid JSON format matching this schema exactly:
+Return valid JSON adhering strictly to this production schema:
 {
-  "executiveSummary": "2-3 crisp sentences summarizing what ${targetCompany} does, their market position, and likely current initiatives.",
-  "recentTriggers": ["Key business trigger 1", "Industry movement or hiring signal 2", "Recent growth milestone 3"],
+  "twoMinuteBrief": {
+    "whoAreThey": "1 sentence defining ${targetCompany}'s core business and market footprint.",
+    "whyMeeting": "Primary business objective for this conversation.",
+    "whatChanged": "Recent delta signal or operational shift.",
+    "topRisk": "Single biggest failure mode or trap in this meeting.",
+    "meetingObjective": "The exact milestone this call must secure before dropping off."
+  },
+  "executiveSummary": "2 crisp paragraphs explaining their strategic posture, recent growth moves, and operational headwinds.",
+  "recentTriggers": [
+    {
+      "signal": "Operational or market development 1",
+      "impact": "Why this creates friction or urgency for ${targetCompany}",
+      "confidence": "Verified"
+    },
+    {
+      "signal": "Hiring, expansion, or tooling change 2",
+      "impact": "Implication on ${attendeeRole}'s team performance",
+      "confidence": "AI Inference"
+    }
+  ],
+  "stakeholderInsight": {
+    "rolePriorities": "What someone in ${attendeeRole}'s position is measured on in Q3/Q4.",
+    "influenceLevel": "High",
+    "likelyBuyingRole": "Champion / Evaluator"
+  },
   "tailoredTalkingPoints": [
-    "Talking point specifically addressing ${attendeeRole}'s priorities tied to our value prop",
-    "Value-based hook connecting our product to their workflow",
-    "Differentiation anchor"
+    {
+      "point": "Executive value hook connecting their expansion directly to our product.",
+      "whyThis": "Tied to their operational scale",
+      "evidence": "Recent hiring & market expansion"
+    },
+    {
+      "point": "Battlecard differentiator neutralizing competitor alternatives.",
+      "whyThis": "Protects deal velocity against legacy vendors",
+      "evidence": "Internal Seller Battlecards"
+    }
   ],
   "discoveryQuestions": [
-    "Question uncovering their current operational bottleneck",
-    "Question regarding decision timeline and executive buy-in",
-    "Question regarding ROI expectations"
+    {
+      "question": "Strategic discovery question mapping current operational state to pain.",
+      "intent": "Uncovers technical bottleneck and root cause.",
+      "meddpiccStage": "Metrics / Implication"
+    },
+    {
+      "question": "Discovery question probing decision criteria and economic buyer alignment.",
+      "intent": "Validates budget authority and procurement timeline.",
+      "meddpiccStage": "Economic Buyer"
+    },
+    {
+      "question": "Urgency question linking unresolved friction to quarterly revenue impact.",
+      "intent": "Forces buyer to quantify cost of doing nothing.",
+      "meddpiccStage": "Decision Process"
+    }
   ],
   "objectionHandling": {
-    "likelyObjection": "Anticipated hesitation from a ${attendeeRole}",
-    "recommendedPivot": "How the sales rep should confidently address it"
+    "likelyObjection": "Realistic hesitation ${attendeeRole} will raise regarding budget, timing, or existing tools.",
+    "rootCause": "Why buyers actually say this (fear of friction, lack of perceived differentiation).",
+    "recommendedPivot": "Exact talk track the rep should use to reframe and advance.",
+    "whatNotToSay": "Generic defensive statement to strictly avoid."
   },
-  "citations": ["Public Market Context", "Industry Data", "Internal Seller Knowledge Base"]
+  "nextBestAction": {
+    "action": "Immediate tactical step required right after this call.",
+    "rationale": "Why this specific action unblocks the opportunity."
+  }
 }
 `;
 
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const data = JSON.parse(text);
+    const data = JSON.parse(result.response.text());
 
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ error: err.message || "Failed to generate brief" }, { status: 500 });
+    console.error("API Engine Error:", err);
+    return NextResponse.json({ error: err.message || "Execution engine failure" }, { status: 500 });
   }
 }
